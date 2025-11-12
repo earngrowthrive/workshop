@@ -3,12 +3,55 @@
 <head>
     <title>3-Day Note Intensive</title>
     <style>
-        /* Same clean styling as your image */
-        body { font-family: system-ui; background: #f5f5f5; }
-        .container { background: white; padding: 40px; max-width: 400px; margin: 50px auto; }
-        select, input, button { width: 100%; padding: 15px; margin: 10px 0; }
-        button { background: #000; color: white; border: none; cursor: pointer; }
+        body { 
+            font-family: -apple-system, system-ui, sans-serif;
+            background: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h2 {
+            margin-top: 0;
+            font-weight: 600;
+        }
+        select, input {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 15px;
+            background: #000;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+        button:hover {
+            background: #333;
+        }
+        .g-recaptcha {
+            margin: 15px 0;
+        }
     </style>
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 <body>
     <div class="container">
@@ -17,13 +60,19 @@
             <select id="timeSlot" required>
                 <option value="">Select Your Time</option>
             </select>
+            
+            <input type="text" id="firstName" placeholder="First Name" required>
+            
             <input type="email" id="email" placeholder="Email Address" required>
+            
+            <div class="g-recaptcha" data-sitekey="YOUR_RECAPTCHA_SITE_KEY"></div>
+            
             <button type="submit">Claim Your Spot</button>
         </form>
     </div>
 
     <script>
-        // Load available slots from JSON
+        // Load available slots
         fetch('slots.json')
             .then(response => response.json())
             .then(data => {
@@ -38,19 +87,37 @@
                 });
             });
 
-        // Submit to n8n webhook
+        // Form submission
         document.getElementById('bookingForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            
+            // Verify captcha
+            const captchaResponse = grecaptcha.getResponse();
+            if (!captchaResponse) {
+                alert('Please complete the captcha');
+                return;
+            }
+            
+            const data = {
+                slot: document.getElementById('timeSlot').value,
+                firstName: document.getElementById('firstName').value,
+                email: document.getElementById('email').value,
+                captcha: captchaResponse
+            };
+            
             const response = await fetch('YOUR_N8N_WEBHOOK_URL', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    slot: document.getElementById('timeSlot').value,
-                    email: document.getElementById('email').value
-                })
+                body: JSON.stringify(data)
             });
+            
             if (response.ok) {
-                alert('Spot claimed! Check your email.');
+                alert('Spot claimed! Check your email for details.');
+                document.getElementById('bookingForm').reset();
+                grecaptcha.reset();
+            } else {
+                alert('This time slot is now full. Please try another.');
+                location.reload(); // Refresh to get updated slots
             }
         });
     </script>
