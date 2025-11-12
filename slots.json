@@ -1,0 +1,7 @@
+{
+  "options": [
+    {"id": 1, "time": "Wed-Fri @ 12:30pm CST", "available": true},
+    {"id": 2, "time": "Wed-Fri @ 2:00pm CST", "available": true},
+    {"id": 3, "time": "Wed-Fri @ 3:00pm CST", "available": true}
+  ]
+}
