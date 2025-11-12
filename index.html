@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>3-Day Note Intensive</title>
+    <style>
+        /* Same clean styling as your image */
+        body { font-family: system-ui; background: #f5f5f5; }
+        .container { background: white; padding: 40px; max-width: 400px; margin: 50px auto; }
+        select, input, button { width: 100%; padding: 15px; margin: 10px 0; }
+        button { background: #000; color: white; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>3-Day Note Investing Intensive</h2>
+        <form id="bookingForm">
+            <select id="timeSlot" required>
+                <option value="">Select Your Time</option>
+            </select>
+            <input type="email" id="email" placeholder="Email Address" required>
+            <button type="submit">Claim Your Spot</button>
+        </form>
+    </div>
+
+    <script>
+        // Load available slots from JSON
+        fetch('slots.json')
+            .then(response => response.json())
+            .then(data => {
+                const select = document.getElementById('timeSlot');
+                data.options.forEach(slot => {
+                    if (slot.available) {
+                        const option = document.createElement('option');
+                        option.value = slot.id;
+                        option.textContent = slot.time;
+                        select.appendChild(option);
+                    }
+                });
+            });
+
+        // Submit to n8n webhook
+        document.getElementById('bookingForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const response = await fetch('YOUR_N8N_WEBHOOK_URL', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    slot: document.getElementById('timeSlot').value,
+                    email: document.getElementById('email').value
+                })
+            });
+            if (response.ok) {
+                alert('Spot claimed! Check your email.');
+            }
+        });
+    </script>
+</body>
+</html>
