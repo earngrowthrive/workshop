@@ -47,80 +47,149 @@
         button:hover {
             background: #333;
         }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .g-recaptcha {
+            margin: 15px 0;
+        }
         .success-message {
             display: none;
             text-align: center;
+            padding: 20px;
+        }
+        .success-message h3 {
+            color: #48bb78;
         }
     </style>
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 <body>
     <div class="container">
-        <h2>3-Day Note Investing Intensive</h2>
-        <form id="bookingForm">
-            <select id="timeSlot" required>
-                <option value="">Select Your Time</option>
-            </select>
-            
-            <input type="text" id="firstName" placeholder="First Name" required>
-            
-            <input type="email" id="email" placeholder="Email Address" required>
-            
-            <button type="submit">Claim Your Spot</button>
-        </form>
+        <div id="formContainer">
+            <h2>3-Day Note Investing Intensive</h2>
+            <form id="bookingForm">
+                <select id="timeSlot" required>
+                    <option value="">Loading time slots...</option>
+                </select>
+                
+                <input type="text" id="firstName" placeholder="First Name" required>
+                
+                <input type="email" id="email" placeholder="Email Address" required>
+                
+                <div class="g-recaptcha" data-sitekey="6Lf75AosAAAAAK52x_xmkEUMsi-iCmtObNPcmb7o"></div>
+                
+                <button type="submit">Claim Your Spot</button>
+            </form>
+        </div>
         
         <div id="successMessage" class="success-message">
             <h3>✅ You're In!</h3>
-            <p>Check your email for calendar invites!</p>
+            <p>Check your email for 3 Google Calendar invites.<br>
+            Click "Yes" on each to get reminders!</p>
         </div>
     </div>
     
     <script>
-    console.log("Script loaded!");
-    
-    // Load time slots from JSON file
-    async function loadTimeSlots() {
-        try {
-            const response = await fetch('slots.json');
-            const data = await response.json();
-            
-            const select = document.getElementById('timeSlot');
-            
-            // Populate dropdown with available slots
-            data.options.forEach(slot => {
-                if (slot.available) {
-                    const option = document.createElement('option');
-                    option.value = slot.id;
-                    option.textContent = slot.time;
-                    select.appendChild(option);
+        console.log("Script loaded!");
+        
+        // Load available slots from JSON
+        async function loadTimeSlots() {
+            try {
+                console.log("Loading slots from slots.json...");
+                const response = await fetch('slots.json');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
-            });
-        } catch (error) {
-            console.error('Error loading slots:', error);
+                
+                const data = await response.json();
+                console.log("Slots loaded:", data);
+                
+                const select = document.getElementById('timeSlot');
+                select.innerHTML = '<option value="">Select Your Time</option>';
+                
+                data.options.forEach(slot => {
+                    if (slot.available) {
+                        const option = document.createElement('option');
+                        option.value = slot.id;
+                        option.textContent = slot.time;
+                        select.appendChild(option);
+                    }
+                });
+                
+                console.log("Time slots populated");
+            } catch (error) {
+                console.error('Error loading slots:', error);
+                alert('Error loading time slots. Please refresh the page.');
+            }
         }
-    }
-    
-    // Load slots when page loads
-    loadTimeSlots();
-    
-    document.getElementById('bookingForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        console.log("Form submitted!");
         
-        // Get form data - FIXED: using timeSlot instead of slot
-        const formData = {
-            slot: document.getElementById('timeSlot').value,
-            firstName: document.getElementById('firstName').value,
-            email: document.getElementById('email').value
-        };
+        // Load slots when page loads
+        loadTimeSlots();
         
-        console.log("Sending:", formData);
-        
-        // Use URLSearchParams - no CORS preflight!
-        const params = new URLSearchParams();
-        params.append('slot', formData.slot);
-        params.append('firstName', formData.firstName);
-        params.append('email', formData.email);
-        
-        try {
-            const response = await fetch('https://sierrad1.app.n8n.cloud/webhook/tiny-challenge-booking', {
-                method: 'PO
+        // Form submission
+        document.getElementById('bookingForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            console.log("Form submitted!");
+            
+            // Verify captcha
+            const captchaResponse = grecaptcha.getResponse();
+            if (!captchaResponse) {
+                alert('Please complete the CAPTCHA');
+                return;
+            }
+            
+            console.log("CAPTCHA verified");
+            
+            // Disable submit button
+            const submitButton = e.target.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            submitButton.textContent = 'Booking...';
+            
+            // Prepare form data using URLSearchParams (no CORS preflight!)
+            const params = new URLSearchParams();
+            params.append('slot', document.getElementById('timeSlot').value);
+            params.append('firstName', document.getElementById('firstName').value);
+            params.append('email', document.getElementById('email').value);
+            params.append('captchaToken', captchaResponse);
+            
+            console.log("Sending booking request...");
+            
+            try {
+                const response = await fetch('https://sierrad1.app.n8n.cloud/webhook/tiny-challenge-booking', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: params
+                });
+                
+                console.log("Response status:", response.status);
+                
+                const result = await response.json();
+                console.log("Response data:", result);
+                
+                if (response.ok) {
+                    // Success!
+                    document.getElementById('formContainer').style.display = 'none';
+                    document.getElementById('successMessage').style.display = 'block';
+                } else {
+                    // Error
+                    alert(result.error || 'Booking failed. The slot may be full. Please try another time.');
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Claim Your Spot';
+                    grecaptcha.reset();
+                }
+            } catch (error) {
+                console.error('Network error:', error);
+                alert('Network error. Please check your connection and try again.');
+                submitButton.disabled = false;
+                submitButton.textContent = 'Claim Your Spot';
+                grecaptcha.reset();
+            }
+        });
+    </script>
+</body>
+</html>
